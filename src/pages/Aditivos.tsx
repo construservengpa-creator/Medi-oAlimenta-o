@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useDados } from './ContratoLayout';
+import { usePerm } from '../lib/acesso';
 import { db, uid, type Aditivo } from '../lib/db';
 import { resumoAditivos, valorOriginal, valorAtual, deltasAditivos, dataTermino, prazoVigente } from '../lib/calc';
 import { brl, fmtDate, hojeISO, num, round2 } from '../lib/format';
 import { NumInput } from '../components/ui';
 
 export default function Aditivos() {
+  const perm = usePerm();
   const { contrato, itens, aditivos } = useDados();
   const [edit, setEdit] = useState<string | null>(null);
   const r = resumoAditivos(itens, aditivos);
@@ -26,7 +28,8 @@ export default function Aditivos() {
   }
 
   return (
-    <>
+    <fieldset className="leitura" disabled={!perm.admin}>
+      {!perm.admin && <div className="aviso pequeno">Somente administradores registram aditivos. Você está em modo de consulta.</div>}
       <div className="grid g4">
         <div className="kpi"><div className="rot">Valor original</div><div className="val">{brl(valorOriginal(itens))}</div></div>
         <div className="kpi"><div className="rot">Acréscimos</div><div className={`val ${r.percAcrescimo > 25 ? 'vermelho' : ''}`}>{brl(r.acrescimos)}</div><div className="sub">{num(r.percAcrescimo)}% do original (limite 25%)</div></div>
@@ -93,6 +96,6 @@ export default function Aditivos() {
           </div>
         );
       })}
-    </>
+    </fieldset>
   );
 }

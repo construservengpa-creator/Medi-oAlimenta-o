@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useDados } from './ContratoLayout';
-import { db, uid, type Foto, type Item, type Medicao, type MemoriaLinha, type StatusMedicao as SM } from '../lib/db';
+import { db, enviarFoto, excluirFoto, uid, type Foto, type Item, type Medicao, type MemoriaLinha, type StatusMedicao as SM } from '../lib/db';
 import { agruparPorEtapa, calcularBoletim, resultadoLinha, type LinhaBoletim } from '../lib/calc';
 import { brl, fmtDate, num } from '../lib/format';
 import { NumInput, StatusMedicao } from '../components/ui';
 import { comprimirImagem } from '../lib/image';
-import { useBlobURL } from '../lib/hooks';
+import { useFotoURL, useLiveQuery } from '../lib/hooks';
+import { usePerm } from '../lib/acesso';
 import { baixarCSV } from '../lib/csv';
 
 type Aba = 'quantidades' | 'memoria' | 'fotos';
@@ -18,10 +18,11 @@ export default function MedicaoEditor() {
   const m = d.medicoes.find((x) => x.id === mid);
   const [aba, setAba] = useState<Aba>('quantidades');
   const [itemSel, setItemSel] = useState<string | null>(null);
+  const perm = usePerm();
   if (!m) return <p>Medição não encontrada.</p>;
 
   const b = calcularBoletim(d.contrato, d.itens, d.aditivos, d.medicoes, d.memoria, m);
-  const bloqueada = m.status === 'aprovada';
+  const bloqueada = m.status === 'aprovada' || !(perm.lancar || perm.aprovar);
   const upd = (p: Partial<Medicao>) => db.medicoes.update(m.id, p);
   const excedidos = b.linhas.filter((l) => l.excedido);
 
@@ -69,9 +70,17 @@ export default function MedicaoEditor() {
         </label>
         <div className="linha" style={{ marginTop: '.75rem' }}>
           <b>Situação:</b>
-          {m.status === 'rascunho' && <button className="pri" onClick={() => mudarStatus('em_analise')}>Enviar para análise da fiscalização</button>}
-          {m.status === 'em_analise' && <><button className="pri" onClick={() => mudarStatus('aprovada')}>Aprovar medição</button><button onClick={() => mudarStatus('rascunho')}>Devolver para correção</button></>}
-          {m.status === 'aprovada' && <><span className="verde">Aprovada — edição bloqueada.</span><button onClick={() => mudarStatus('em_analise')}>Reabrir</button></>}
+          {m.status === 'rascunho' && (perm.lancar || perm.aprovar) && <button className="pri" onClick={() => mudarStatus('em_analise')}>Enviar para análise da fiscalização</button>}
+          {m.status === 'rascunho' && <span className="muted">Em elaboração.</span>}
+          {m.status === 'em_analise' && (perm.aprovar
+            ? <><button className="pri" onClick={() => mudarStatus('aprovada')}>Aprovar medição</button><button onClick={() => mudarStatus('rascunho')}>Devolver para correção</button></>
+            : <span className="muted">Aguardando a fiscalização.</span>)}
+          {m.status === 'aprovada' && <><span className="verde">Aprovada — edição bloqueada.</span>{perm.aprovar && <button onClick={() => mudarStatus('em_analise')}>Reabrir</button>}</>}
+          <span className="espaco" />
+          <span className="muted pequeno">
+            {m.enviadoPorNome && <>Enviada por {m.enviadoPorNome} em {new Date(m.enviadoEm!).toLocaleString('pt-BR')}. </>}
+            {m.aprovadoPorNome && <>Aprovada por {m.aprovadoPorNome} em {new Date(m.aprovadoEm!).toLocaleString('pt-BR')}.</>}
+          </span>
         </div>
       </div>
 
@@ -257,7 +266,7 @@ function Fotos({ m, itens, bloqueada }: { m: Medicao; itens: Item[]; bloqueada: 
       try {
         const blob = await comprimirImagem(f);
         const data = new Date(f.lastModified || Date.now()).toISOString().slice(0, 10);
-        await db.fotos.add({ id: uid(), contratoId: m.contratoId, medicaoId: m.id, blob, legenda: '', data, ordem: ordem++ });
+        await enviarFoto({ id: uid(), contratoId: m.contratoId, medicaoId: m.id, legenda: '', data, ordem: ordem++ }, blob);
       } catch (e) {
         alert(`Não foi possível ler ${f.name}: ${(e as Error).message}`);
       }
@@ -297,7 +306,7 @@ function Fotos({ m, itens, bloqueada }: { m: Medicao; itens: Item[]; bloqueada: 
 }
 
 function CartaoFoto({ f, n, servicos, bloqueada, mover }: { f: Foto; n: number; servicos: Item[]; bloqueada: boolean; mover: (f: Foto, d: -1 | 1) => void }) {
-  const url = useBlobURL(f.blob);
+  const url = useFotoURL(f.caminho);
   const upd = (p: Partial<Foto>) => db.fotos.update(f.id, p);
   return (
     <div className="foto">
@@ -305,7 +314,7 @@ function CartaoFoto({ f, n, servicos, bloqueada, mover }: { f: Foto; n: number; 
       <div className="corpo">
         <div className="linha pequeno"><b>Foto {n}</b><span className="espaco" />
           {!bloqueada && <><button className="mini" onClick={() => mover(f, -1)}>←</button><button className="mini" onClick={() => mover(f, 1)}>→</button>
-            <button className="mini perigo" onClick={() => confirm('Excluir foto?') && db.fotos.delete(f.id)}>✕</button></>}
+            <button className="mini perigo" onClick={() => confirm('Excluir foto?') && excluirFoto(f)}>✕</button></>}
         </div>
         <select disabled={bloqueada} value={f.itemId ?? ''} onChange={(e) => upd({ itemId: e.target.value || undefined })}>
           <option value="">— serviço (geral) —</option>

@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Route, Routes } from 'react-router-dom';
+import { PortaoAcesso, usePerm } from './lib/acesso';
+import { assinarPendentes } from './lib/db';
+import { AvisoAcesso, Login } from './pages/Login';
 import Painel from './pages/Painel';
 import ContratoForm from './pages/ContratoForm';
 import ContratoLayout from './pages/ContratoLayout';
@@ -18,6 +22,14 @@ import CronogramaPrint from './print/CronogramaPrint';
 
 export default function App() {
   return (
+    <PortaoAcesso Login={Login} Aviso={AvisoAcesso}>
+      <Rotas />
+    </PortaoAcesso>
+  );
+}
+
+function Rotas() {
+  return (
     <Routes>
       <Route path="/imprimir/boletim/:mid" element={<BoletimPrint />} />
       <Route path="/imprimir/memoria/:mid" element={<MemoriaPrint />} />
@@ -28,7 +40,19 @@ export default function App() {
   );
 }
 
+function Salvando() {
+  const [n, setN] = useState(0);
+  useEffect(() => assinarPendentes(setN), []);
+  useEffect(() => {
+    const f = (e: BeforeUnloadEvent) => { if (n > 0) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', f);
+    return () => window.removeEventListener('beforeunload', f);
+  }, [n]);
+  return <span className="salvando">{n > 0 ? 'Salvando…' : 'Tudo salvo'}</span>;
+}
+
 function Shell() {
+  const perm = usePerm();
   return (
     <div className="app">
       <header className="topo">
@@ -37,9 +61,13 @@ function Shell() {
         </Link>
         <nav>
           <NavLink to="/" end>Painel</NavLink>
-          <NavLink to="/contratos/novo">Novo contrato</NavLink>
-          <NavLink to="/backup">Backup</NavLink>
+          {perm.admin && <NavLink to="/contratos/novo">Novo contrato</NavLink>}
+          <NavLink to="/backup">Exportar dados</NavLink>
         </nav>
+        <span className="espaco" style={{ flex: 1 }} />
+        <Salvando />
+        <span className="salvando" title={perm.email}>{perm.nome} · {perm.perfil}</span>
+        <button className="mini" onClick={perm.sair}>Sair</button>
       </header>
       <main className="conteudo">
         <Routes>

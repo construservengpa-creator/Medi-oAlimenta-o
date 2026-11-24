@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { usePerm } from '../lib/acesso';
+import { supabase } from '../lib/supabase';
 import { useNavigate, useParams } from 'react-router-dom';
-import { db, excluirContrato, uid, type Contrato } from '../lib/db';
+import { db, excluirContrato, flush, uid, type Contrato } from '../lib/db';
 import { hojeISO, parseNum, num } from '../lib/format';
 import { blobParaDataURL, comprimirImagem } from '../lib/image';
 
@@ -20,10 +22,16 @@ export default function ContratoForm() {
   const { id } = useParams();
   const nav = useNavigate();
   const [c, setC] = useState<Contrato | null>(id ? null : novo());
+  const perm = usePerm();
+  const [obras, setObras] = useState<{ id: number; codigo: string | null; nome: string }[]>([]);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     if (id) db.contratos.get(id).then((x) => x && setC(x));
   }, [id]);
+  useEffect(() => {
+    supabase.rpc('medobra_obras').then(({ data }) => setObras((data as typeof obras) ?? []));
+  }, []);
   if (!c) return null;
 
   const set = <K extends keyof Contrato>(k: K, v: Contrato[K]) => setC({ ...c, [k]: v });
@@ -35,8 +43,15 @@ export default function ContratoForm() {
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
-    await db.contratos.put(c!);
-    nav(`/contratos/${c!.id}`);
+    setSalvando(true);
+    try {
+      if (id) await db.contratos.update(c!.id, c!);
+      else await db.contratos.add(c!);
+      await flush();
+      nav(`/contratos/${c!.id}`);
+    } catch {
+      setSalvando(false);
+    }
   }
 
   async function logo(f?: File) {
@@ -46,7 +61,9 @@ export default function ContratoForm() {
 
   return (
     <form onSubmit={salvar}>
-      <h1>{id ? 'Editar contrato' : 'Novo contrato'}</h1>
+      <h1>{id ? 'Dados do contrato' : 'Novo contrato'}</h1>
+      <fieldset className="leitura" disabled={!perm.admin}>
+      {!perm.admin && <div className="aviso pequeno">Somente administradores alteram os dados do contrato.</div>}
       <div className="card">
         <h3>Identificação</h3>
         <div className="grid g4">
@@ -58,6 +75,13 @@ export default function ContratoForm() {
             </select>
           </label>
           {txt('local', 'Local da obra')}
+          <label className="campo">Obra (Central de Acessos)
+            <select value={c.obraId ?? ''} onChange={(e) => set('obraId', e.target.value ? Number(e.target.value) : null)}>
+              <option value="">— sem obra (visível só a quem vê todas as obras) —</option>
+              {obras.map((o) => <option key={o.id} value={o.id}>{o.codigo ? `${o.codigo} · ` : ''}{o.nome}</option>)}
+              {c.obraId && !obras.some((o) => o.id === c.obraId) && <option value={c.obraId}>obra nº {c.obraId}</option>}
+            </select>
+          </label>
         </div>
         <label className="campo" style={{ marginTop: '1rem' }}>Objeto *
           <textarea rows={2} required value={c.objeto} onChange={(e) => set('objeto', e.target.value)} />
@@ -120,11 +144,12 @@ export default function ContratoForm() {
         </div>
       </div>
 
+      </fieldset>
       <div className="linha">
-        <button type="submit" className="pri">Salvar contrato</button>
+        {perm.admin && <button type="submit" className="pri" disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar contrato'}</button>}
         <button type="button" onClick={() => nav(-1)}>Cancelar</button>
         <span className="espaco" />
-        {id && (
+        {id && perm.admin && (
           <button type="button" className="perigo" onClick={async () => {
             if (confirm('Excluir o contrato e TODOS os dados (planilha, medições, fotos)? Esta ação não pode ser desfeita.')) {
               await excluirContrato(c.id);

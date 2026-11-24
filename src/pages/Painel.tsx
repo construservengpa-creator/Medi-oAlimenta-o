@@ -1,4 +1,4 @@
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useLiveQuery } from '../lib/hooks';
 import { Link } from 'react-router-dom';
 import { db } from '../lib/db';
 import type { DadosContrato } from '../lib/hooks';
@@ -6,8 +6,10 @@ import { indicadores } from '../lib/indicadores';
 import { brl, hojeISO, num, fmtDate } from '../lib/format';
 import { Barra, StatusContrato } from '../components/ui';
 import { carregarExemplo } from '../lib/exemplo';
+import { usePerm } from '../lib/acesso';
 
 export default function Painel() {
+  const perm = usePerm();
   const dados = useLiveQuery(async () => {
     const contratos = await db.contratos.toArray();
     return Promise.all(
@@ -35,16 +37,18 @@ export default function Painel() {
           <div className="muted">Visão geral da carteira em {fmtDate(hoje)}</div>
         </div>
         <span className="espaco" />
-        <Link to="/contratos/novo" className="botao pri">+ Novo contrato</Link>
+        {perm.admin && <Link to="/contratos/novo" className="botao pri">+ Novo contrato</Link>}
       </div>
 
       {lista.length === 0 ? (
         <div className="card vazio">
-          <p>Nenhum contrato cadastrado.</p>
-          <div className="linha" style={{ justifyContent: 'center' }}>
-            <Link to="/contratos/novo" className="botao pri">Cadastrar contrato</Link>
-            <button onClick={() => carregarExemplo()}>Carregar contrato de exemplo</button>
-          </div>
+          <p>Nenhum contrato {perm.admin ? 'cadastrado' : 'liberado para você'}.</p>
+          {perm.admin && (
+            <div className="linha" style={{ justifyContent: 'center' }}>
+              <Link to="/contratos/novo" className="botao pri">Cadastrar contrato</Link>
+              <button onClick={() => carregarExemplo()}>Criar contrato de exemplo</button>
+            </div>
+          )}
         </div>
       ) : (
         <>

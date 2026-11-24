@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDados } from './ContratoLayout';
+import { usePerm } from '../lib/acesso';
 import { db, uid, type Item } from '../lib/db';
 import { agruparPorEtapa, deltasAditivos, quantidadeAtual, valorAtual, valorOriginal } from '../lib/calc';
 import { brl, num, parseNum, round2 } from '../lib/format';
@@ -7,6 +8,7 @@ import { NumInput } from '../components/ui';
 import { baixarCSV, lerTabela } from '../lib/csv';
 
 export default function Planilha() {
+  const perm = usePerm();
   const d = useDados();
   const { contrato, itens, aditivos } = d;
   const [importar, setImportar] = useState(false);
@@ -60,7 +62,8 @@ export default function Planilha() {
   const nomeAditivo = new Map(aditivos.map((a) => [a.id, a.numero]));
 
   return (
-    <>
+    <fieldset className="leitura" disabled={!perm.admin}>
+      {!perm.admin && <div className="aviso pequeno">Somente administradores alteram a planilha. Você está em modo de consulta.</div>}
       <div className="linha" style={{ marginBottom: '.75rem' }}>
         <button onClick={() => adicionar('etapa')}>+ Etapa</button>
         <button onClick={() => adicionar('item')}>+ Item</button>
@@ -128,7 +131,7 @@ export default function Planilha() {
           </table>
         </div>
       )}
-    </>
+    </fieldset>
   );
 }
 

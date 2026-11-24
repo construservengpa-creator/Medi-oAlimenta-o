@@ -1,12 +1,14 @@
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useLiveQuery } from '../lib/hooks';
 import { useState } from 'react';
 import { useDados } from './ContratoLayout';
+import { usePerm } from '../lib/acesso';
 import { db, uid, type Diario } from '../lib/db';
 import { fmtDate, hojeISO } from '../lib/format';
 
 const CLIMAS = ['Bom', 'Nublado', 'Chuva fraca', 'Chuva forte (impraticável)'];
 
 export default function DiarioObra() {
+  const perm = usePerm();
   const { contrato } = useDados();
   const registros = useLiveQuery(() => db.diario.where('contratoId').equals(contrato.id).reverse().sortBy('data'), [contrato.id]) ?? [];
   const [aberto, setAberto] = useState<string | null>(null);
@@ -20,7 +22,8 @@ export default function DiarioObra() {
   const upd = (r: Diario, p: Partial<Diario>) => db.diario.update(r.id, p);
 
   return (
-    <>
+    <fieldset className="leitura" disabled={!(perm.lancar || perm.aprovar)}>
+      {!(perm.lancar || perm.aprovar) && <div className="aviso pequeno">Somente a equipe de medição/fiscalização registra o diário. Você está em modo de consulta.</div>}
       <div className="linha" style={{ marginBottom: '.75rem' }}>
         <button className="pri" onClick={novo}>+ Registro do dia</button>
         <span className="muted pequeno">{registros.length} registro(s) · {diasChuva} dia(s) impraticáveis por chuva (base para pedido de prorrogação)</span>
@@ -52,6 +55,6 @@ export default function DiarioObra() {
           )}
         </div>
       ))}
-    </>
+    </fieldset>
   );
 }

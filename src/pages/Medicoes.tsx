@@ -4,6 +4,7 @@ import { db, excluirMedicao, uid } from '../lib/db';
 import { calcularBoletim } from '../lib/calc';
 import { addDias, brl, fmtDate, hojeISO, num } from '../lib/format';
 import { StatusMedicao } from '../components/ui';
+import { usePerm } from '../lib/acesso';
 
 function fimDoMes(iso: string) {
   const [y, m] = iso.split('-').map(Number);
@@ -15,6 +16,8 @@ export default function Medicoes() {
   const d = useDados();
   const { contrato, medicoes } = d;
   const nav = useNavigate();
+  const perm = usePerm();
+  const podeLancar = perm.lancar || perm.aprovar;
 
   async function nova() {
     const ult = medicoes[medicoes.length - 1];
@@ -31,7 +34,8 @@ export default function Medicoes() {
   return (
     <>
       <div className="linha" style={{ marginBottom: '.75rem' }}>
-        <button className="pri" onClick={nova} disabled={!d.itens.some((i) => i.tipo === 'item')}>+ Nova medição</button>
+        <button className="pri" onClick={nova} disabled={!podeLancar || !d.itens.some((i) => i.tipo === 'item')}>+ Nova medição</button>
+        {!podeLancar && <span className="tag">modo consulta</span>}
         <span className="muted pequeno">Fluxo: lançar quantidades (com memória de cálculo) → anexar fotos → enviar para análise → aprovar → imprimir boletim.</span>
       </div>
       {medicoes.length === 0 ? <div className="card vazio">Nenhuma medição registrada.</div> : (
@@ -57,7 +61,7 @@ export default function Medicoes() {
                       <Link to={`/imprimir/fotos/${m.id}`} target="_blank">Fotos</Link>
                     </td>
                     <td>
-                      {m.status !== 'aprovada' && m.numero === medicoes[medicoes.length - 1].numero && (
+                      {podeLancar && m.status !== 'aprovada' && m.numero === medicoes[medicoes.length - 1].numero && (
                         <button className="mini perigo" onClick={async () => { if (confirm(`Excluir a ${m.numero}ª medição, sua memória e fotos?`)) await excluirMedicao(m.id); }}>Excluir</button>
                       )}
                     </td>

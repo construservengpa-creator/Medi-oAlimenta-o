@@ -1,9 +1,8 @@
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useParams } from 'react-router-dom';
 import { useMedicaoPrint, usePagina } from './dados';
 import { Assinaturas, BarraImpressao, Cabecalho } from './Cabecalho';
 import { db, type Foto, type Item } from '../lib/db';
-import { useBlobURL } from '../lib/hooks';
+import { useFotoURL, useLiveQuery } from '../lib/hooks';
 import { fmtDate } from '../lib/format';
 
 export default function FotosPrint() {
@@ -41,7 +40,7 @@ export default function FotosPrint() {
 }
 
 function FotoP({ f, n }: { f: Foto; n: number }) {
-  const url = useBlobURL(f.blob);
+  const url = useFotoURL(f.caminho);
   return (
     <div className="foto-p">
       {url && <img src={url} alt="" />}

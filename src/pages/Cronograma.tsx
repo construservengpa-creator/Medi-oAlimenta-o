@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDados } from './ContratoLayout';
+import { usePerm } from '../lib/acesso';
 import { db, type Item } from '../lib/db';
 import { agruparPorEtapa, deltasAditivos, quantidadeAtual, valorAtual } from '../lib/calc';
 import { brl, num, rotuloMes } from '../lib/format';
 import { NumInput } from '../components/ui';
 
 export default function Cronograma() {
+  const perm = usePerm();
   const { contrato, itens, aditivos, cronograma } = useDados();
   const n = contrato.mesesCronograma;
   const deltas = deltasAditivos(aditivos);
@@ -54,7 +56,8 @@ export default function Cronograma() {
   if (!itens.some((i) => i.tipo === 'item')) return <div className="card vazio">Cadastre a planilha orçamentária antes de montar o cronograma.</div>;
 
   return (
-    <>
+    <fieldset className="leitura" disabled={!perm.admin}>
+      {!perm.admin && <div className="aviso pequeno">Somente administradores alteram o cronograma. Você está em modo de consulta.</div>}
       <div className="card">
         <div className="linha">
           <span><b>Selecionado:</b> {sel ? `${sel.codigo} ${sel.descricao}` : <span className="muted">clique em uma linha (item ou etapa)</span>}</span>
@@ -128,6 +131,6 @@ export default function Cronograma() {
           </tfoot>
         </table>
       </div>
-    </>
+    </fieldset>
   );
 }

@@ -1,4 +1,4 @@
-import { db, uid, type Item, type MemoriaLinha } from './db';
+import { db, flush, uid, type Item, type MemoriaLinha } from './db';
 import { addDias, hojeISO } from './format';
 
 /** Cria um contrato de demonstração com planilha, cronograma e duas medições. */
@@ -47,7 +47,7 @@ export async function carregarExemplo() {
     { id: uid(), numero: 1, periodoInicio: dataInicio, periodoFim: fim(0), status: 'aprovada' as const },
     { id: uid(), numero: 2, periodoInicio: addDias(fim(0), 1), periodoFim: fim(1), status: 'em_analise' as const },
   ];
-  for (const x of med) await db.medicoes.add({ ...x, contratoId: cid, dataEmissao: addDias(x.periodoFim, 3), reajustePercentual: 0, quantidadesManuais: {} });
+  for (const x of med) await db.medicoes.add({ ...x, status: 'rascunho', contratoId: cid, dataEmissao: addDias(x.periodoFim, 3), reajustePercentual: 0, quantidadesManuais: {} });
   const L = (mi: number, codigo: string, descricao: string, d: Partial<MemoriaLinha>): MemoriaLinha => ({
     id: uid(), contratoId: cid, medicaoId: med[mi].id, itemId: it(codigo), ordem: Math.random(), descricao, ...d,
   });
@@ -63,5 +63,11 @@ export async function carregarExemplo() {
     L(1, '2.2', 'Vigas baldrame', { c: 64, l: 0.2, h: 0.4 }),
     L(1, '2.3', 'Conforme romaneio de armação nº 01', { n: 1, c: 980 }),
   ]);
+  // o fluxo do banco exige rascunho → em análise → aprovada
+  await flush();
+  for (const x of med) await db.medicoes.update(x.id, { status: 'em_analise' });
+  await flush();
+  await db.medicoes.update(med[0].id, { status: 'aprovada' });
+  await flush();
   await db.diario.add({ id: uid(), contratoId: cid, data: addDias(dataInicio, 2), climaManha: 'Bom', climaTarde: 'Bom', maoDeObra: '1 encarregado, 3 pedreiros, 5 serventes', equipamentos: 'Betoneira 400 L', atividades: 'Instalação da placa de obra e início da locação.', ocorrencias: '' });
 }

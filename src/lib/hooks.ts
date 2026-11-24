@@ -1,6 +1,17 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useState } from 'react';
-import { db } from './db';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { db, store, urlFoto } from './db';
+
+/** Executa a consulta (sobre o cache) e repete a cada alteração dos dados. */
+export function useLiveQuery<T>(fn: () => Promise<T> | T, deps: unknown[] = []): T | undefined {
+  const versao = useSyncExternalStore(store.assinar, () => store.versao);
+  const [res, setRes] = useState<T>();
+  useEffect(() => {
+    let vivo = true;
+    Promise.resolve(fn()).then((r) => { if (vivo) setRes(() => r); });
+    return () => { vivo = false; };
+  }, [versao, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
+  return res;
+}
 
 /** Carrega todos os dados de um contrato e reage a qualquer alteração. */
 export function useContrato(id: string | undefined) {
@@ -19,15 +30,27 @@ export function useContrato(id: string | undefined) {
   }, [id]);
 }
 
-export type DadosContrato = NonNullable<ReturnType<typeof useContrato>>;
+export type DadosContrato = NonNullable<Awaited<ReturnType<typeof carregarTipo>>>;
+// apenas para inferência de tipo
+async function carregarTipo() {
+  const contrato = (await db.contratos.get(''))!;
+  return {
+    contrato,
+    itens: await db.itens.toArray(),
+    aditivos: await db.aditivos.toArray(),
+    medicoes: await db.medicoes.toArray(),
+    memoria: await db.memoria.toArray(),
+    cronograma: await db.cronograma.toArray(),
+  };
+}
 
-export function useBlobURL(blob: Blob | undefined) {
+/** URL assinada (temporária) de uma foto do armazenamento. */
+export function useFotoURL(caminho: string | undefined) {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
-    if (!blob) return;
-    const u = URL.createObjectURL(blob);
-    setUrl(u);
-    return () => URL.revokeObjectURL(u);
-  }, [blob]);
+    let vivo = true;
+    if (caminho) urlFoto(caminho).then((u) => vivo && setUrl(u));
+    return () => { vivo = false; };
+  }, [caminho]);
   return url;
 }

@@ -1,7 +1,6 @@
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect } from 'react';
 import { db } from '../lib/db';
-import { useContrato } from '../lib/hooks';
+import { useContrato, useLiveQuery } from '../lib/hooks';
 
 export function useMedicaoPrint(mid: string | undefined) {
   const contratoId = useLiveQuery(async () => (mid ? (await db.medicoes.get(mid))?.contratoId ?? null : null), [mid]);

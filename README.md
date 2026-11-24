@@ -3,7 +3,10 @@
 Sistema web para gestão de contratos de obras: planilha orçamentária, cronograma físico-financeiro,
 previsão financeira, medições com memória de cálculo e relatório fotográfico, e emissão do boletim de medição.
 
-Funciona **offline** no navegador (dados em IndexedDB), inclusive no celular/tablet no canteiro.
+Os dados ficam no **Supabase do Painel de Suprimentos** (tabelas `medobra_*`), com login pelos mesmos usuários do painel
+e acesso controlado pela **Central de Acessos** (aplicação "Medição de Obras"). Veja [`supabase/README.md`](supabase/README.md).
+
+Endereço (após publicar): https://construservengpa-creator.github.io/Medi-oAlimenta-o/
 
 ## Como rodar
 
@@ -14,7 +17,10 @@ npm run build      # gera a pasta dist/ (hospedagem estática: Vercel, Netlify, 
 npm test           # testes das regras de cálculo
 ```
 
-No painel, clique em **"Carregar contrato de exemplo"** para ver o sistema com dados.
+Para entrar é preciso ter a aplicação "Medição de Obras" liberada na Central de Acessos.
+Um administrador pode criar um **contrato de exemplo** pelo painel vazio.
+
+Publicação: workflow `.github/workflows/pages.yml` (roda na `main` ou manualmente; requer Pages com origem "GitHub Actions").
 
 ## Módulos
 
@@ -31,14 +37,16 @@ No painel, clique em **"Carregar contrato de exemplo"** para ver o sistema com d
 | **Aditivos** | Prorrogação de prazo, acréscimos/supressões de quantidade, inclusão de itens novos; controle do limite de 25% (Lei 14.133/21, art. 125) |
 | **Diário de obra (RDO)** | Clima manhã/tarde, efetivo, equipamentos, atividades, ocorrências; contagem de dias impraticáveis por chuva |
 | **Painel e alertas** | Valor contratado/medido/saldo da carteira, avanço financeiro x previsto, prazo decorrido, alertas de prazo vencendo, atraso físico, item excedido, limite de aditivo |
-| **Backup** | Exporta/importa todos os dados (com fotos) em JSON |
+| **Perfis e trilha** | Administrador, Engenheiro de medição, Fiscal e Consulta; registro de quem enviou e aprovou cada medição |
+| **Exportar dados** | Baixa os dados visíveis ao usuário em JSON |
 
 Todos os relatórios abrem em nova aba com botão **Imprimir / salvar PDF**.
 
 ## Estrutura
 
 ```
-src/lib/db.ts          modelo de dados (Dexie/IndexedDB)
+src/lib/db.ts          modelo de dados + cache e fila de gravação no Supabase
+src/lib/acesso.tsx     login e permissões (Central de Acessos)
 src/lib/calc.ts        regras: boletim, acumulados, aditivos, cronograma, previsão
 src/lib/expr.ts        avaliador seguro de fórmulas da memória de cálculo
 src/pages/             telas
@@ -47,8 +55,8 @@ src/print/             boletim, memória, relatório fotográfico, cronograma (i
 
 ## Próximas etapas sugeridas
 
-1. **Servidor e multiusuário** — migrar o armazenamento para Supabase/PostgreSQL (a camada de dados está isolada em `lib/db.ts` e `lib/hooks.ts`), com login e perfis: contratada (lança), fiscal (analisa/aprova), gestor (consulta).
-2. **Assinatura e trilha de auditoria** — registrar quem lançou, alterou e aprovou cada medição; assinatura digital (gov.br / ICP-Brasil) no PDF.
+1. **Atualização em tempo real** entre usuários (hoje os dados são recarregados ao voltar para a aba).
+2. **Assinatura digital** (gov.br / ICP-Brasil) no PDF do boletim.
 3. **Reajuste automático** — índices (INCC, SINAPI, IPCA) com data-base, cálculo pela fórmula do contrato.
 4. **Banco de composições** — importar SINAPI/SICRO/ORSE por estado e mês de referência, com composições analíticas e curva ABC.
 5. **Fotos georreferenciadas** — gravar GPS/EXIF e carimbo de data/hora na imagem; mapa da obra.
