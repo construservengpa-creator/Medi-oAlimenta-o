@@ -49,7 +49,7 @@ export default function Previsao() {
               <Tooltip formatter={(v: number) => brl(v)} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="Previsto" fill="#1f5f99" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="Medido" fill="#e0861a" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="Medido" fill="#c2650a" radius={[3, 3, 0, 0]} />
               <Bar dataKey="Reprogramado" fill="#8a9bb0" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

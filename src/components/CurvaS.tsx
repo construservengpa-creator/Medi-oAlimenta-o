@@ -20,7 +20,7 @@ export default function CurvaS({ contrato, meses, altura = 300 }: { contrato: Co
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <Line type="monotone" dataKey="previsto" name="Previsto" stroke="#1f5f99" strokeWidth={2} dot={false} />
         <Line type="monotone" dataKey="reprogramado" name="Reprogramado" stroke="#8a9bb0" strokeDasharray="5 4" strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="realizado" name="Realizado" stroke="#e0861a" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+        <Line type="monotone" dataKey="realizado" name="Realizado" stroke="#c2650a" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
       </LineChart>
     </ResponsiveContainer>
   );

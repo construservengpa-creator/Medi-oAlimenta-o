@@ -6,10 +6,12 @@ import { db, type Item } from '../lib/db';
 import { agruparPorEtapa, deltasAditivos, quantidadeAtual, valorAtual } from '../lib/calc';
 import { brl, num, rotuloMes } from '../lib/format';
 import { NumInput } from '../components/ui';
+import GraficoAvanco from '../components/GraficoAvanco';
 
 export default function Cronograma() {
   const perm = usePerm();
-  const { contrato, itens, aditivos, cronograma } = useDados();
+  const dados = useDados();
+  const { contrato, itens, aditivos, cronograma } = dados;
   const n = contrato.mesesCronograma;
   const deltas = deltasAditivos(aditivos);
   const total = valorAtual(itens, deltas);
@@ -57,6 +59,7 @@ export default function Cronograma() {
 
   return (
     <fieldset className="leitura" disabled={!perm.admin}>
+      <GraficoAvanco d={dados} />
       {!perm.admin && <div className="aviso pequeno">Somente administradores alteram o cronograma. Você está em modo de consulta.</div>}
       <div className="card">
         <div className="linha">
